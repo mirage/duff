@@ -1,0 +1,12 @@
+(jbuild_version 1)
+
+(executable
+ ((name fuzz)
+  (libraries (duff crowbar))
+))
+
+(alias
+ ((name runfuzz)
+  (action
+   (run ${exe:fuzz.exe}))
+))
