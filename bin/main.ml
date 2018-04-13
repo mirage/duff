@@ -15,8 +15,6 @@ let set_byte bytes off value = Bytes.unsafe_set bytes off (Char.unsafe_chr value
 
 let serialize_one bytes target = function
   | Duff.Copy (off, len) ->
-    Fmt.(pf stdout) "Save copy op-code (off: %d, len: %d).\n%!" off len;
-
     let pos = ref 1 in
     let stp = ref 0 in
 
@@ -38,8 +36,6 @@ let serialize_one bytes target = function
 
     (bytes, 0, !pos)
   | Duff.Insert (off, len) ->
-    Fmt.(pf stdout) "Save insert op-code (off:%d, len: %d).\n%!" off len;
-
     set_byte bytes 0 len;
     Cstruct.blit_to_bytes target off bytes 1 len;
 
@@ -48,14 +44,18 @@ let serialize_one bytes target = function
 let (<.>) f g = fun x -> f (g x)
 let some x = Some x
 
-let serialize bytes target output rabin =
+let serialize bytes target oc rabin =
+  let output = function
+    | Some (tmp, off, len) -> output_substring oc (Bytes.unsafe_to_string tmp) off len
+    | None -> () in
+
   List.iter (output <.> some <.> serialize_one bytes target) rabin;
   output None;
   Ok ()
 
 module Diff = Duff.Default
 
-let diff source target output =
+let diff source target =
   let source_content = load_file source in
   let target_content = load_file target in
 
@@ -64,7 +64,7 @@ let diff source target output =
   let rabin = Diff.delta index target_content in
   let bytes = Bytes.create 0x80 in
 
-  Bos.OS.File.with_output output (serialize bytes target_content) rabin
+  serialize bytes target_content stdout rabin
   |> function
   | Ok _ -> Ok ()
   | Error _ as err -> err
@@ -125,9 +125,6 @@ struct
   let code byte src t = match byte land 0x80 with
     | 0x80 ->
       let k off len _src t =
-        Fmt.(pf stderr) "Retrieve copy op-code (off: %d, len: %d).\n!"
-          off (if len = 0 then 0x1000 else len);
-
         Cont { t with state = (R (C { off; len = if len = 0 then 0x10000 else len })) } in
 
       (get_byte_if (byte land 0x01)
@@ -142,7 +139,6 @@ struct
          ((l2 lsl 16) lor (l1 lsl 8) lor l0))
         src t
     | _ ->
-      Fmt.(pf stderr) "Retrieve insert op-code (len: %d).\n%!" byte;
       get_slice byte src t
 
   let o src t = get_byte code src t
@@ -173,12 +169,21 @@ struct
     ; state = O }
 end
 
-let reconstruct source target output =
+let reconstruct source =
   let source_content = load_file source in
   let insert = Bytes.create 0x1000 in
   let bytes = Bytes.create 0x1000 in
 
-  let with_input_and_output input output =
+  let with_input_and_output ic oc =
+    let output = function
+      | Some (tmp, off, len) -> output_substring oc (Bytes.unsafe_to_string tmp) off len
+      | None -> () in
+
+    let input () = match input ic bytes 0 (Bytes.length bytes) with
+      | 0 -> None
+      | n -> Some (bytes, 0, n)
+      | exception End_of_file -> None in
+
     let rec go bytes t = match Decode.eval bytes t with
       | `Hunk (t, Decode.I { tmp; len; }) ->
         output (Some (tmp, 0, len));
@@ -192,41 +197,35 @@ let reconstruct source target output =
         | None -> Ok () in
     go bytes Decode.default in
 
-  Bos.OS.File.with_output output
-    (fun output () -> Bos.OS.File.with_input target
-        (fun input () -> with_input_and_output input output) ()) ()
+  with_input_and_output stdin stdout
   |> function
   | Ok _ -> Ok ()
   | Error _ as err -> err
 
 open Cmdliner
 
-let main source target = function
-  | true ->
+let main source target action = match target, action with
+  | Some target, `Diff ->
     let source = Fpath.v source in
     let target = Fpath.v target in
-    let output = Fpath.add_ext "xduff" target in
-    diff source target output
-  | false ->
+    diff source target
+  | None, `Patch ->
     let source = Fpath.v source in
-    let target = Fpath.v target in
-    let output =
-      if Fpath.has_ext "xduff" target
-      then Fpath.rem_ext target
-      else Fpath.add_ext "trg" target in
-    reconstruct source target output
+    reconstruct source
+  | _ -> assert false (* TODO *)
 
 let source =
   let doc = "Source file" in
-  Arg.(required & pos 0 (some file) None & info [] ~docv:"SOURCE" ~doc)
+  Arg.(required & pos 1 (some file) None & info [] ~docv:"SOURCE" ~doc)
 
 let target =
   let doc = "Target file" in
-  Arg.(required & pos ~rev:true 0 (some file) None & info [] ~docv:"TARGET" ~doc)
+  Arg.(value & pos 2 (some file) None & info [] ~docv:"TARGET" ~doc)
 
 let diff =
-  let doc = "Compute diff (if present) or reconstruct target" in
-  Arg.(value & flag & info [ "d"; "diff" ] ~doc)
+  let doc = "Compute diff or patch" in
+  let diff_or_patch = Arg.enum [ "diff", `Diff; "patch", `Patch ] in
+  Arg.(required & pos 0 (some diff_or_patch) None & info [] ~doc)
 
 let cmd =
   let doc = "Diff files" in
