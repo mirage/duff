@@ -26,6 +26,26 @@ and `len`, and `Insert` *opcode* which contains entirely slice of your blob.
 Finally, to procude a PACK file in git or ocaml-git, we use this algorithm and
 this representation to optimize representation of your blobs (cf. `git gc`).
 
+Binary
+------
+
+You can see an example of `duff` in `bin` directory. It's an executable to
+represent a _thin_ representation of your file. Then, you can reconstruct it
+with `patch` sub-command.
+
+This is an example to use `duff`:
+
+```sh
+$ ./duff.exe diff source target > target.xduff
+$ ./duff.exe patch source < target.xduff > target.new
+$ diff target target.new
+$ echo $?
+0
+```
+
+The internal format used is close to what `git` does internally (without `zlib`
+layer). However, it does not correspond to an _official_ format.
+
 Limitations
 ===========
 
