@@ -1,0 +1,7 @@
+(jbuild_version 1)
+
+(executables
+ ((names        (main))
+  (package      duff)
+  (public_names (xduff))
+  (libraries    (duff cmdliner fmt fpath bos))))
