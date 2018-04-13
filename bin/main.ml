@@ -212,7 +212,7 @@ let main source target action = match target, action with
   | None, `Patch ->
     let source = Fpath.v source in
     reconstruct source
-  | _ -> assert false (* TODO *)
+  | _ -> Error (`Msg "I don't understand what you want.")
 
 let source =
   let doc = "Source file" in
