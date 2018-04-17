@@ -4,4 +4,4 @@
  ((names        (main))
   (package      duff)
   (public_names (xduff))
-  (libraries    (duff cmdliner fmt fpath bos))))
+  (libraries    (duff cmdliner fmt fmt.cli fmt.tty logs logs.cli logs.fmt fpath bos))))
