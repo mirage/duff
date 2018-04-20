@@ -1,5 +1,5 @@
-Duff
-====
+Duff – libXdiff implementation in OCaml
+---------------------------------------
 
 Duff is a little library to implement
 [libXdiff](http://www.xmailserver.org/xdiff-lib.html) in OCaml. This library is
@@ -7,8 +7,7 @@ a part of the [ocaml-git](https://github.com/mirage/ocaml-git) project. This
 code is a translation of `diff-delta.c` available on the git project in OCaml.
 So, it respects some git's constraints unlike libXdiff.
 
-Examples
-========
+## Examples
 
 This library let the user to calculate an `Index.t` from a source (a hash-table)
 which can be computed with a blob. Then, from `Index.t` (which represents your
@@ -26,8 +25,7 @@ and `len`, and `Insert` *opcode* which contains entirely slice of your blob.
 Finally, to procude a PACK file in git or ocaml-git, we use this algorithm and
 this representation to optimize representation of your blobs (cf. `git gc`).
 
-Binary
-------
+### Binary
 
 You can see an example of `duff` in `bin` directory. It's an executable to
 represent a _thin_ representation of your file. Then, you can reconstruct it
@@ -46,8 +44,7 @@ $ echo $?
 The internal format used is close to what `git` does internally (without `zlib`
 layer). However, it does not correspond to an _official_ format.
 
-Limitations
-===========
+## Limitations
 
 Because this project is used by
 [ocaml-git](https://github.com/mirage/ocaml-git), we have some limitations:
@@ -63,8 +60,7 @@ these constraints is outside this library.
 From this limitation, `Copy` *opcode* have an offset between 0x0 and 0xFFFFFFE
 and `off + len` is lower than 0xFFFFFFFE.
 
-Fuzzer
-======
+## Fuzzer
 
 We provide a fuzzer to randomly test this library. Currently (4/9/2018),
 `afl-fuzz` did not find any bugs and it computed 67.7k cycles (117 paths).
