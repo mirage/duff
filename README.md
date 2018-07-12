@@ -1,5 +1,5 @@
 Duff – libXdiff implementation in OCaml
----------------------------------------
+=======================================
 
 Duff is a little library to implement
 [libXdiff](http://www.xmailserver.org/xdiff-lib.html) in OCaml. This library is
