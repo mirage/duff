@@ -22,8 +22,8 @@ From this information, we can have a tiny representation of your blob which can
 be reconstruct with your source. The goal is to store `Copy` *opcode* with `off`
 and `len`, and `Insert` *opcode* which contains entirely slice of your blob.
 
-Finally, to procude a PACK file in git or ocaml-git, we use this algorithm and
-this representation to optimize representation of your blobs (cf. `git gc`).
+Finally, to produce a PACK file in git or ocaml-git, we use this algorithm and
+this representation to optimize storage of your blobs (cf. `git gc`).
 
 ### Binary
 
