@@ -30,5 +30,6 @@ depends: [
   "fmt"      {>= "0.8.5"}
   "bos"      {>= "0.2.0"}
   "fpath"    {>= "0.7.0"}
+  "bigstringaf"
   "alcotest" {with-test}
 ]
