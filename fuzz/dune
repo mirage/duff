@@ -1,6 +1,6 @@
 (executable
  (name fuzz)
- (libraries duff crowbar))
+ (libraries duff bigstringaf hxd.string crowbar))
 
 (alias
  (name runfuzz)

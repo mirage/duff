@@ -17,61 +17,37 @@
 
 (** Rabin's fingerprint and diff algorithm. *)
 
-(** Common Value for [libXdiff]'s algorithm. *)
-module type VALUE =
-sig
-  val window: int
-  (** Length of the Rabin Window. *)
+type bigstring = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
-  val shift: int
-  (** How many bits we need to shift to get a bounded index to [T] (this value must be [23]). *)
+type index
+(** The type of the index. *)
 
-  val limit: int
-  (** Limit the number of entries per hashes (default = 64). *)
-end
+val pp_index : index Fmt.t
+(** Pretty-printer of {!index}. *)
 
-(** Index module which represents an efficient hash-table associated to a
-   {!Cstruct.t}. *)
-module Index (V: VALUE) :
-sig
-  type t
-  (** The type of the index. *)
+val memory_size : index -> int
+(** [memory_size t] returns how many word(s) is needed to store [t]. *)
 
-  val pp: t Fmt.t
-  (** Pretty-printer of {!t}. *)
+val make: ?copy:bool -> bigstring -> index
+(** [make ?copy raw] returns a Rabin's fingerprint of [raw]. [?copy] signals to
+   copy the input buffer [raw] or not because [make] expects to take the
+   ownership of [raw].
 
-  val memory_size: t -> int
-  (** [memory_size t] returns how many word(s) is needed to store [t]. *)
-
-  val make: ?copy:bool -> Cstruct.t -> t
-  (** [make ?copy raw] returns a Rabin's fingerprint of [raw]. [?copy] signals
-     to copy the input buffer [raw] or not because [make] expects to take the
-     ownership of [raw].
-
-      So, if the user want to change (by side-effect) [raw] then, returned value
-     by [make] is not valid anymore. However, if [copy] is true, [make] will
-     allocate a new {!Cstruct.t} and copy [raw] to this new {!Cstruct.t}. *)
-end
+   So, if the user want to change (by side-effect) [raw] then, returned value by
+   [make] is not valid anymore. However, if [copy] is true, [make] will allocate
+   a new {!Cstruct.t} and copy [raw] to this new {!Cstruct.t}. *)
 
 (** The type of the compression. *)
-type t =
+type hunk =
   | Copy of (int * int)
   (** It's the copy {i opcode} to copy the byte range from the source to the
      target. *)
   | Insert of (int * int)
   (** It's the insert {i opcode} to keep a specific byte range of the target. *)
 
-val pp: t Fmt.t
-(** Pretty-printer of {!t}. *)
+val pp_hunk : hunk Fmt.t
+(** Pretty-printer of {!hunk}. *)
 
-module Delta (V: VALUE):
-sig
-  module Index: module type of Index(V)
-
-  val delta: Index.t -> Cstruct.t -> t list
-  (** [delta index trg] returns a compression list between the Rabin's
-     fingerprint of a source with the target [trg]. *)
-end
-
-(** A default application of {!Delta}. *)
-module Default: module type of Delta(struct let window, shift, limit = 16, 23, 64 end)
+val delta: index -> bigstring -> hunk list
+(** [delta index trg] returns a compression list between the Rabin's fingerprint
+   of a source with the target [trg]. *)

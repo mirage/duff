@@ -24,7 +24,7 @@ depends: [
   "ocaml"    {>= "4.03.0"}
   "dune"     {build}
   "fmt"
-  "cstruct"
+  "bigarray-compat"
   "cmdliner" {>= "1.0.2"}
   "logs"     {>= "0.6.2"}
   "fmt"      {>= "0.8.5"}

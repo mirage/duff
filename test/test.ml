@@ -23,8 +23,8 @@ let test length =
   @@ fun () ->
   let a = random_string length in
   let b = random_string length in
-  let index = Duff.Default.Index.make (Cstruct.of_string a) in
-  let rabin = Duff.Default.delta index (Cstruct.of_string b) in
+  let index = Duff.make (Bigstringaf.of_string a ~off:0 ~len:(String.length a)) in
+  let rabin = Duff.delta index (Bigstringaf.of_string b ~off:0 ~len:(String.length b)) in
   let length' = List.fold_left (fun a -> function
       | Duff.Copy (_, len) -> a + len
       | Duff.Insert (_, len) -> a + len)
