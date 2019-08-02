@@ -26,7 +26,8 @@ val pp_index : index Fmt.t
 (** Pretty-printer of {!index}. *)
 
 val memory_size : index -> int
-(** [memory_size t] returns how many word(s) is needed to store [t]. *)
+(** [memory_size index] returns how many byte(s) {!index} uses (it's only
+   informal). *)
 
 val make: ?copy:bool -> bigstring -> index
 (** [make ?copy raw] returns a Rabin's fingerprint of [raw]. [?copy] signals to
@@ -35,19 +36,20 @@ val make: ?copy:bool -> bigstring -> index
 
    So, if the user want to change (by side-effect) [raw] then, returned value by
    [make] is not valid anymore. However, if [copy] is true, [make] will allocate
-   a new {!Cstruct.t} and copy [raw] to this new {!Cstruct.t}. *)
+   a new {!bigstring} and copy [raw] to this new {!bigstring}. *)
 
 (** The type of the compression. *)
 type hunk =
   | Copy of (int * int)
-  (** It's the copy {i opcode} to copy the byte range from the source to the
-     target. *)
+  (** It's the copy ([(off, len)]) {i opcode} to copy {i len} byte(s) range from
+     the source at {i off} to the target. *)
   | Insert of (int * int)
-  (** It's the insert {i opcode} to keep a specific byte range of the target. *)
+  (** It's the insert ([off, len]) {i opcode} to keep a specific byte range of
+     the target at {i off}. *)
 
 val pp_hunk : hunk Fmt.t
 (** Pretty-printer of {!hunk}. *)
 
 val delta: index -> bigstring -> hunk list
 (** [delta index trg] returns a compression list between the Rabin's fingerprint
-   of a source with the target [trg]. *)
+   of a source [index] with the target [trg]. *)
