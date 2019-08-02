@@ -1,3 +1,8 @@
-(test
+(executable
  (name test)
  (libraries fmt bigstringaf alcotest duff))
+
+(alias
+ (name runtest)
+ (deps (:test test.exe))
+ (action (run %{test} --color=always)))
