@@ -35,12 +35,12 @@ struct
      NOTE: in reality, the last case should never occur. *)
   let to_int x =
     if Sys.word_size = 64
-    then (if compare 0l x = 1 (* number is negative. *)
-          then 2147483647 + (2147483648 + (to_int x))
-          else to_int x)
-    else (if compare 0l x = 1 || compare x 1073741823l = 1
-          then failwith "This architecture does not support an unsigned 32-bits integer as native integer"
-          else to_int x)
+    then ( if compare 0l x = 1 (* number is negative. *)
+           then 2147483647 + (2147483648 + (to_int x))
+           else to_int x)
+    else ( if compare 0l x = 1 || compare x 1073741823l = 1
+           then failwith "This architecture does not support an unsigned 32-bits integer as native integer"
+           else to_int x)
 
   let compare a b =
     (compare (sub a min_int) (sub b min_int)) (* @dbuenzli <3 *)
@@ -172,9 +172,15 @@ let hash buf off len =
   let v = ref 0l in
 
   while off + !i < len && !i < _window
-  do v := Uint32.(((!v lsl 8) lor (of_int (unsafe_get_uint8 buf (off + !i)))) (* XXX(dinosaure): [unsafe_get_uint32]? *)
-                  lxor t.(to_int (!v lsr _shift)));
-    incr i done;
+  do
+    (* XXX(dinosaure): this code produce no jump to the GC. However, we replace [Uint32.to_int] by [Uint32.of_int].
+       - [Uint32.of_int c] does not produce any GC jump
+       - [m] was made with [Int32.to_int] to be optimized (bug can be here!) *)
+    let m = Int32.to_int Uint32.(!v lsr _shift) in
+    let c = unsafe_get_uint8 buf (off + !i) in
+    v := Uint32.(((!v lsl 8) lor (of_int c)) lxor t.(m));
+    incr i
+  done;
 
   !v
 
