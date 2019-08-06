@@ -538,5 +538,5 @@ let delta index buf =
   let hash = hash buf 0 (bigstring_length buf) in
   let consumed = min _window (bigstring_length buf) in
 
-  bigstring_foldi ~start:consumed make ([ Insert (0, consumed) ], (0, 0), hash) buf
-  |> fun (res, _, _) -> List.rev res
+  let res, _, _ = bigstring_foldi ~start:consumed make ([ Insert (0, consumed) ], (0, 0), hash) buf in
+  List.rev res
