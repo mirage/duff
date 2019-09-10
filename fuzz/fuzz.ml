@@ -26,7 +26,7 @@ let () =
      let a = Bigstringaf.of_string a ~off:0 ~len:(String.length a) in
      let b = Bigstringaf.of_string b ~off:0 ~len:(String.length b) in
      let index = Duff.make a in
-     let rabin = Duff.delta index b in
+     let rabin = Duff.delta index ~source:a ~target:b in
      let length = length rabin in
 
      if length <> Bigstringaf.length b

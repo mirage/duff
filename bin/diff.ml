@@ -4,7 +4,6 @@ let set_byte bytes off value = Bytes.unsafe_set bytes off (Char.unsafe_chr value
 
 let serialize_one bytes target = function
   | Duff.Copy (off, len) ->
-    Fmt.epr "<<< Copy off:%d, len:%d.\n%!" off len ;
     let pos = ref 1 in
     let stp = ref 0 in
 
@@ -28,7 +27,6 @@ let serialize_one bytes target = function
   | Duff.Insert (off, len) ->
     set_byte bytes 0 len;
     Bigstringaf.blit_to_bytes target ~src_off:off bytes ~dst_off:1 ~len ;
-    Fmt.epr "<<< Insert %S.\n%!" (Bytes.sub_string bytes 1 len) ;
 
     (bytes, 0, len + 1)
 
@@ -50,7 +48,7 @@ let diff source target =
 
   let index = Duff.make source_content in
 
-  let rabin = Duff.delta index target_content in
+  let rabin = Duff.delta index ~source:source_content ~target:target_content in
   let bytes = Bytes.create 0x80 in
 
   serialize bytes target_content stdout rabin

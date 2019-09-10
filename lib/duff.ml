@@ -158,14 +158,8 @@ let u =
 
 type bigstring = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
-let bigstring_create l = Bigarray.Array1.create Bigarray.char Bigarray.c_layout l
 let bigstring_length x = Bigarray.Array1.dim x [@@inline]
 external unsafe_get_uint8 : bigstring -> int -> int = "%caml_ba_ref_1"
-external unsafe_set_uint8 : bigstring -> int -> int -> unit = "%caml_ba_set_1"
-
-let fast_blit src src_off dst dst_off len =
-  for i = 0 to len - 1
-  do unsafe_set_uint8 dst (dst_off + i) (unsafe_get_uint8 src (src_off + i)) done
 
 let hash buf off len =
   let i = ref 0 in
@@ -222,23 +216,18 @@ let pp_entry : entry Fmt.t = fun ppf entry ->
 
 type index =
   { hash : entry list array
-  ; mask : Uint32.t
-  ; buff : bigstring }
-
-let memory_size { hash; buff; _ } =
-  3 + (bigstring_length buff + 1) + 1 + (Array.fold_left (fun acc x -> List.length x * 4 + 1 + acc) 1 hash)
+  ; mask : Uint32.t }
 
 let pp_index : index Fmt.t = fun ppf index ->
   Fmt.pf ppf "{ @[<hov>hash = [ %a ];@ \
-              mask = %lxu;@ \
-              buff = #raw;@] }"
+              mask = %lxu;@] }"
     (Fmt.hvbox (Fmt.array (Fmt.list pp_entry))) index.hash index.mask
 
-let unsafe_make buf =
+let unsafe_make source =
   let len =
     if Sys.word_size == 64
-    then min (bigstring_length buf) 0xFFFFFFFE
-    else min (bigstring_length buf) max_int in
+    then min (bigstring_length source) 0xFFFFFFFE
+    else min (bigstring_length source) max_int in
   (* XXX(dinosaure): in git, we can't encode on offset upper than
        [0xFFFFFFFE]. So we limit the index to this area. *)
   let max = (len - 1) / _window in
@@ -258,7 +247,7 @@ let unsafe_make buf =
 
   while !idx >= 0
   do
-    let hash = hash buf (!idx + 1) (bigstring_length buf) in
+    let hash = hash source (!idx + 1) (bigstring_length source) in
 
     if Uint32.compare hash !previous = 0
     then
@@ -393,19 +382,9 @@ let unsafe_make buf =
   done;
 
   { hash = packed
-  ; mask = hmask
-  ; buff = buf }
+  ; mask = hmask }
 
-  let make ?(copy = false) buf =
-    if copy
-    then
-      let len = bigstring_length buf in
-      let raw = bigstring_create len in
-
-      fast_blit buf 0 raw 0 len;
-
-      unsafe_make raw
-    else unsafe_make buf
+let make source = unsafe_make source
 
 let bigstring_iteri ?(start = 0) f c =
   let len = bigstring_length c in
@@ -465,16 +444,16 @@ let pp_hunk ppf = function
   | Copy (off, len) -> Fmt.pf ppf "(Copy (%d, %d))" off len
   | Insert (off, len) -> Fmt.pf ppf "(Insert (%d, %d))" off len
 
-let delta index buf =
+let delta index ~source ~target =
   let make (acc, (copy_off, copy_len), current_hash) offset _ =
     let (copy_off, copy_len), current_hash =
       if copy_len < 4096
       then
-        let current_hash = derive current_hash buf offset in
+        let current_hash = derive current_hash target offset in
 
         List.fold_left
           (fun (copy_off, copy_len) entry ->
-             let same = same (index.buff, entry.offset) (buf, offset) in
+             let same = same (source, entry.offset) (target, offset) in
 
              (* XXX(dinosaure): git shortcut this compute when [copy_len >=
                 4096]. In imperative way, it's good but, guy, it's OCaml. We
@@ -503,7 +482,7 @@ let delta index buf =
     else
       let rev_same = match acc with
         | Insert (poff, _) :: _ ->
-          rev_same ~limit:(offset - poff) (index.buff, copy_off - 1) (buf, offset - 1)
+          rev_same ~limit:(offset - poff) (source, copy_off - 1) (target, offset - 1)
         | Copy _ :: _ | [] -> 0
         (* XXX(dinosaure): this case concerns an empty list and a list started
            with a [C]. in any case, we can't move back. *)
@@ -531,12 +510,12 @@ let delta index buf =
         `Move copy_len,
         (Copy (copy_off - rev_same, copy_len + rev_same) :: acc,
          (copy_off + copy_len + rev_same, 0),
-         hash buf (offset + copy_len - _window) (bigstring_length buf))
+         hash target (offset + copy_len - _window) (bigstring_length target))
       end
   in
 
-  let hash = hash buf 0 (bigstring_length buf) in
-  let consumed = min _window (bigstring_length buf) in
+  let hash = hash target 0 (bigstring_length target) in
+  let consumed = min _window (bigstring_length target) in
 
-  let res, _, _ = bigstring_foldi ~start:consumed make ([ Insert (0, consumed) ], (0, 0), hash) buf in
+  let res, _, _ = bigstring_foldi ~start:consumed make ([ Insert (0, consumed) ], (0, 0), hash) target in
   List.rev res

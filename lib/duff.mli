@@ -25,18 +25,7 @@ type index
 val pp_index : index Fmt.t
 (** Pretty-printer of {!index}. *)
 
-val memory_size : index -> int
-(** [memory_size index] returns how many byte(s) {!index} uses (it's only
-   informal). *)
-
-val make: ?copy:bool -> bigstring -> index
-(** [make ?copy raw] returns a Rabin's fingerprint of [raw]. [?copy] signals to
-   copy the input buffer [raw] or not because [make] expects to take the
-   ownership of [raw].
-
-   So, if the user want to change (by side-effect) [raw] then, returned value by
-   [make] is not valid anymore. However, if [copy] is true, [make] will allocate
-   a new {!bigstring} and copy [raw] to this new {!bigstring}. *)
+val make : bigstring -> index
 
 (** The type of the compression. *)
 type hunk =
@@ -50,6 +39,6 @@ type hunk =
 val pp_hunk : hunk Fmt.t
 (** Pretty-printer of {!hunk}. *)
 
-val delta: index -> bigstring -> hunk list
+val delta: index -> source:bigstring -> target:bigstring -> hunk list
 (** [delta index trg] returns a compression list between the Rabin's fingerprint
    of a source [index] with the target [trg]. *)
