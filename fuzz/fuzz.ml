@@ -7,33 +7,33 @@ let length l =
       | Duff.Insert (_, len) -> a + len)
     0 l
 
-let apply a b c l =
+let apply ~len:len' a b c l =
   List.fold_left
     (fun pos -> function
       | Duff.Copy (off, len) ->
-         Cstruct.blit a off c pos len;
-         pos + len
+        Bigstringaf.blit a ~src_off:off c ~dst_off:pos ~len ;
+        pos + len
       | Duff.Insert (off, len) ->
-         Cstruct.blit b off c pos len;
-         pos + len)
-    0 l |> fun _len -> ()
+        Bigstringaf.blit b ~src_off:off c ~dst_off:pos ~len ;
+        pos + len)
+    0 l |> fun len -> assert (len = len')
 
 let () =
   add_test
     ~name:"duff"
     [ bytes; bytes ]
   @@ fun a b ->
-     let a = Cstruct.of_string a in
-     let b = Cstruct.of_string b in
-     let index = Duff.Default.Index.make a in
-     let rabin = Duff.Default.delta index b in
-
+     let a = Bigstringaf.of_string a ~off:0 ~len:(String.length a) in
+     let b = Bigstringaf.of_string b ~off:0 ~len:(String.length b) in
+     let index = Duff.make a in
+     let rabin = Duff.delta index ~source:a ~target:b in
      let length = length rabin in
 
-     if length <> Cstruct.len b
-     then fail "Output length mismatch";
+     if length <> Bigstringaf.length b
+     then fail "Output length mismatch" ;
 
-     let c = Cstruct.create length in
-     apply a b c rabin;
+     let c = Bigstringaf.create length in
+     apply ~len:length a b c rabin ;
 
-     check_eq ~pp:Cstruct.hexdump_pp ~eq:Cstruct.equal b c
+     check_eq ~pp:(Hxd_string.pp Hxd.O.default) ~eq:String.equal
+       (Bigstringaf.to_string b) (Bigstringaf.to_string c)

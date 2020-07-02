@@ -10,23 +10,23 @@ let serialize_one bytes target = function
     if off land 0x000000ff <> 0
     then begin set_byte bytes !pos (off lsr  0); incr pos; stp := !stp lor 0x01; end;
     if off land 0x0000ff00 <> 0
-    then begin set_byte bytes !pos (off lsr  8); incr pos; stp := !stp lor 0x02; end;
+    then begin set_byte bytes !pos (off lsr  8) ; incr pos ; stp := !stp lor 0x02 end ;
     if off land 0x00ff0000 <> 0
-    then begin set_byte bytes !pos (off lsr 16); incr pos; stp := !stp lor 0x04; end;
+    then begin set_byte bytes !pos (off lsr 16) ; incr pos ; stp := !stp lor 0x04 end ;
     if off land 0xff000000 <> 0
-    then begin set_byte bytes !pos (off lsr 24); incr pos; stp := !stp lor 0x08 end;
+    then begin set_byte bytes !pos (off lsr 24) ; incr pos ; stp := !stp lor 0x08 end ;
 
     if len land 0x00ff <> 0
-    then begin set_byte bytes !pos (len lsr  0); incr pos; stp := !stp lor 0x10; end;
+    then begin set_byte bytes !pos (len lsr  0) ; incr pos ; stp := !stp lor 0x10 end ;
     if len land 0xff00 <> 0
-    then begin set_byte bytes !pos (len lsr  8); incr pos; stp := !stp lor 0x20; end;
+    then begin set_byte bytes !pos (len lsr  8) ; incr pos ; stp := !stp lor 0x20 end ;
 
-    set_byte bytes 0 (0x80 lor !stp);
+    set_byte bytes 0 (0x80 lor !stp) ;
 
     (bytes, 0, !pos)
   | Duff.Insert (off, len) ->
     set_byte bytes 0 len;
-    Cstruct.blit_to_bytes target off bytes 1 len;
+    Bigstringaf.blit_to_bytes target ~src_off:off bytes ~dst_off:1 ~len ;
 
     (bytes, 0, len + 1)
 
@@ -42,15 +42,13 @@ let serialize bytes target oc rabin =
   output None;
   Ok ()
 
-module Diff = Duff.Default
-
 let diff source target =
   let source_content = load_file source in
   let target_content = load_file target in
 
-  let index = Diff.Index.make source_content in
+  let index = Duff.make source_content in
 
-  let rabin = Diff.delta index target_content in
+  let rabin = Duff.delta index ~source:source_content ~target:target_content in
   let bytes = Bytes.create 0x80 in
 
   serialize bytes target_content stdout rabin

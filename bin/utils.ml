@@ -8,6 +8,8 @@ let load_file filename =
           Buffer.add_subbytes buffer tmp off len; go ()
         | None -> () in go ()) buffer
   |> function
-  | Ok () -> Buffer.contents buffer |> Cstruct.of_string
+  | Ok () ->
+    let s = Buffer.contents buffer in
+    Bigstringaf.of_string s ~off:0 ~len:(String.length s)
   | Error (`Msg err) -> invalid_arg err
 

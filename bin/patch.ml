@@ -46,7 +46,7 @@ struct
       begin
         let n = min len (t.i_len - t.i_pos) in
 
-        Bytes.blit src (t.i_off + t.i_pos) t.slice off n;
+        Bytes.blit src (t.i_off + t.i_pos) t.slice off n ;
 
         Cont { t with state = K (get_slice ~off:(off + n) (len - n))
                     ; i_pos = t.i_pos + n }
@@ -58,16 +58,16 @@ struct
       let k off len _src t =
         Cont { t with state = (R (C { off; len = if len = 0 then 0x10000 else len })) } in
 
-      (get_byte_if (byte land 0x01)
-       @@ fun o0 -> get_byte_if (byte land 0x02)
-       @@ fun o1 -> get_byte_if (byte land 0x04)
-       @@ fun o2 -> get_byte_if (byte land 0x08)
-       @@ fun o3 -> get_byte_if (byte land 0x10)
-       @@ fun l0 -> get_byte_if (byte land 0x20)
-       @@ fun l1 -> get_byte_if (byte land 0x40)
-       @@ fun l2 -> k
-         ((o3 lsl 24) lor (o2 lsl 16) lor (o1 lsl 8) lor o0)
-         ((l2 lsl 16) lor (l1 lsl 8) lor l0))
+      ( get_byte_if (byte land 0x01)
+        @@ fun o0 -> get_byte_if (byte land 0x02)
+        @@ fun o1 -> get_byte_if (byte land 0x04)
+        @@ fun o2 -> get_byte_if (byte land 0x08)
+        @@ fun o3 -> get_byte_if (byte land 0x10)
+        @@ fun l0 -> get_byte_if (byte land 0x20)
+        @@ fun l1 -> get_byte_if (byte land 0x40)
+        @@ fun l2 -> k
+          ((o3 lsl 24) lor (o2 lsl 16) lor (o1 lsl 8) lor o0)
+          ((l2 lsl 16) lor (l1 lsl 8) lor l0))
         src t
     | _ ->
       get_slice byte src t
@@ -102,7 +102,6 @@ end
 
 let patch source =
   let source_content = load_file source in
-  let insert = Bytes.create 0x1000 in
   let bytes = Bytes.create 0x1000 in
 
   let with_input_and_output ic oc =
@@ -117,11 +116,13 @@ let patch source =
 
     let rec go bytes t = match Decode.eval bytes t with
       | `Hunk (t, Decode.I { tmp; len; }) ->
+        Fmt.epr ">>> Insert %S.\n%!" (Bytes.sub_string tmp 0 len) ;
         output (Some (tmp, 0, len));
         go bytes (Decode.continue t)
       | `Hunk (t, Decode.C { off; len; }) ->
-        Cstruct.blit_to_bytes source_content off insert 0 len;
-        output (Some (insert, 0, len));
+        Fmt.epr ">>> Copy off:%d, len:%d.\n%!" off len ;
+        let insert = Bigstringaf.(to_string (sub source_content ~off ~len)) in
+        output (Some (Bytes.unsafe_of_string insert, 0, len)) ;
         go bytes (Decode.continue t)
       | `Wait t -> match input () with
         | Some (bytes, off, len) -> go bytes (Decode.refill off len t)
