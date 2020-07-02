@@ -25,22 +25,17 @@ module Uint32 =
 struct
   include Int32
 
-  (* XXX(dinosaure): we use the [int32] representation as a fake unsigned
-     [int32]. So we consider than all number between [-2147483648 .. 0[ is, in
-     reality, ]2147483647 .. 4294967295]. Obviously, this hack in only available
-     in an 64-bits architecture (in 32-bits, a native integer can not store the
-     4294967295 number), so when the number is upper than [max_int] or lower
-     than 0, we can not store the unsigned [int32] to a native integer.
-
-     NOTE: in reality, the last case should never occur. *)
-  let to_int x =
-    if Sys.word_size = 64
-    then ( if compare 0l x = 1 (* number is negative. *)
-           then 2147483647 + (2147483648 + (to_int x))
-           else to_int x)
-    else ( if compare 0l x = 1 || compare x 1073741823l = 1
-           then failwith "This architecture does not support an unsigned 32-bits integer as native integer"
-           else to_int x)
+  let to_int = match Sys.word_size with
+    | 32 ->
+      let max_int = of_int Stdlib.max_int in
+      fun n ->
+        if compare zero n <= 0 && compare n max_int <= 0
+        then to_int n
+        else Fmt.invalid_arg "Uint32.to_int"
+    | 64 ->
+      let move = int_of_string "0x1_0000_0000" in
+      fun n -> let i = to_int n in (if i < 0 then i + move else i)
+    | _ -> assert false
 
   let compare a b =
     (compare (sub a min_int) (sub b min_int)) (* @dbuenzli <3 *)
@@ -226,7 +221,7 @@ let pp_index : index Fmt.t = fun ppf index ->
 let unsafe_make source =
   let len =
     if Sys.word_size == 64
-    then min (bigstring_length source) 0xFFFFFFFE
+    then min (bigstring_length source) (int_of_string "0xFFFFFFFE")
     else min (bigstring_length source) max_int in
   (* XXX(dinosaure): in git, we can't encode on offset upper than
        [0xFFFFFFFE]. So we limit the index to this area. *)
