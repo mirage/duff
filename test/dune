@@ -4,5 +4,7 @@
 
 (rule
  (alias runtest)
- (deps (:test test.exe))
- (action (run %{test} --color=always)))
+ (deps
+  (:test test.exe))
+ (action
+  (run %{test} --color=always)))
