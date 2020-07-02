@@ -2,7 +2,7 @@
  (name fuzz)
  (libraries duff bigstringaf hxd.string crowbar))
 
-(alias
- (name runfuzz)
+(rule
+ (alias runtest)
  (deps (:fuzzer fuzz.exe))
  (action (run %{fuzzer})))
