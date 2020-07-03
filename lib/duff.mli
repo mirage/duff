@@ -15,7 +15,22 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-(** Rabin's fingerprint and diff algorithm. *)
+(** Rabin's fingerprint and diff algorithm.
+
+    Let's take a random buffer [a]. We can produce from it an {i index} which is
+    a (lightweight) simple table of occurences ([string]) found into [a].
+
+    From this {i index}, we can get a {i diff} with another random buffer [b]
+    such as:
+
+    {[
+      let index = make a in
+      let diff = delta index ~source:a ~target:b in
+      assert (apply a diff = b)
+    ]}
+
+    A {i diff} is a list of {!hunk}. [apply] is a simple function which needs
+    the source [a] to reconstruct [b]. *)
 
 module Bigarray = Bigarray_compat
 
@@ -29,7 +44,7 @@ val pp_index : index Fmt.t
 (** Pretty-printer of {!index}. *)
 
 val make : bigstring -> index
-(** [make source] returns a fingerprint of [source]. *)
+(** [make source] returns a {i fingerprint} of [source]. *)
 
 (** The type of the compression. *)
 type hunk =
@@ -47,7 +62,5 @@ val delta : index -> source:bigstring -> target:bigstring -> hunk list
 (** [delta index ~source ~target] returns a compression list between the Rabin's
     fingerprint of a [source] [index] with the target [target].
 
-    {b Note.}
-
-    The given [source] must be the same (not necessary physically) than the
-    source used to produce [index] with {!make}. *)
+    {b Note:} the given [source] must be the same (not necessary physically)
+    than the source used to produce [index] with {!make}. *)
