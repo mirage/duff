@@ -18,7 +18,9 @@
 (** Rabin's fingerprint and diff algorithm. *)
 
 module Bigarray = Bigarray_compat
-type bigstring = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+type bigstring =
+  (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
 type index
 (** The type of the index. *)
@@ -32,20 +34,20 @@ val make : bigstring -> index
 (** The type of the compression. *)
 type hunk =
   | Copy of (int * int)
-  (** It's the copy ([(off, len)]) {i opcode} to copy {i len} byte(s) range from
-     the source at {i off} to the target. *)
+      (** It's the copy ([(off, len)]) {i opcode} to copy {i len} byte(s) range
+          from the source at {i off} to the target. *)
   | Insert of (int * int)
-  (** It's the insert ([off, len]) {i opcode} to keep a specific byte range of
-     {i len} bytes of the target at {i off}. *)
+      (** It's the insert ([off, len]) {i opcode} to keep a specific byte range
+          of {i len} bytes of the target at {i off}. *)
 
 val pp_hunk : hunk Fmt.t
 (** Pretty-printer of {!hunk}. *)
 
-val delta: index -> source:bigstring -> target:bigstring -> hunk list
+val delta : index -> source:bigstring -> target:bigstring -> hunk list
 (** [delta index ~source ~target] returns a compression list between the Rabin's
-   fingerprint of a [source] [index] with the target [target].
+    fingerprint of a [source] [index] with the target [target].
 
-   {b Note.}
+    {b Note.}
 
-   The given [source] must be the same (not necessary physically) than the
-   source used to produce [index] with {!make}. *)
+    The given [source] must be the same (not necessary physically) than the
+    source used to produce [index] with {!make}. *)

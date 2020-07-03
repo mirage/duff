@@ -22,15 +22,12 @@ build: [
 
 depends: [
   "ocaml"    {>= "4.03.0"}
-  "dune"
+  "dune"     {>= "2.0.0"}
   "fmt"
   "bigarray-compat"
   "stdlib-shims"
-  "cmdliner" {>= "1.0.2"}
-  "logs"     {>= "0.6.2"}
-  "fmt"      {>= "0.8.5"}
-  "bos"      {>= "0.2.0"}
-  "fpath"    {>= "0.7.0"}
-  "bigstringaf"
-  "alcotest" {with-test}
+  "alcotest"    {with-test}
+  "bigstringaf" {with-test}
+  "hxd"         {with-test}
+  "crowbar"     {with-test}
 ]
