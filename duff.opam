@@ -15,7 +15,6 @@ It follows libXdiff C library. It is used by ocaml-git project.
 """
 
 build: [
-  ["dune" "subst"]
   ["dune" "build" "-p" name "-j" jobs]
   ["dune" "runtest" "-p" name "-j" jobs] {with-test}
 ]
@@ -30,4 +29,8 @@ depends: [
   "bigstringaf" {with-test}
   "hxd"         {with-test}
   "crowbar"     {with-test}
+]
+
+conflicts: [
+  "git" {<= "2.1.3"}
 ]
