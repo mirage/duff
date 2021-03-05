@@ -32,5 +32,5 @@ let () =
   apply ~len:length a b c rabin ;
 
   check_eq
-    ~pp:(Hxd_string.pp Hxd.O.default)
+    ~pp:(Hxd_string.pp Hxd.default)
     ~eq:String.equal (Bigstringaf.to_string b) (Bigstringaf.to_string c)
