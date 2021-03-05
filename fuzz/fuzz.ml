@@ -2,7 +2,8 @@ open Crowbar
 
 let length l =
   List.fold_left
-    (fun a -> function Duff.Copy (_, len) -> a + len
+    (fun a -> function
+      | Duff.Copy (_, len) -> a + len
       | Duff.Insert (_, len) -> a + len)
     0 l
 

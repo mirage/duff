@@ -33,7 +33,8 @@ let test length =
   let rabin = Duff.delta index ~source ~target in
   let length' =
     List.fold_left
-      (fun a -> function Duff.Copy (_, len) -> a + len
+      (fun a -> function
+        | Duff.Copy (_, len) -> a + len
         | Duff.Insert (_, len) -> a + len)
       0 rabin in
 
