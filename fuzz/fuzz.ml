@@ -2,7 +2,8 @@ open Crowbar
 
 let length l =
   List.fold_left
-    (fun a -> function Duff.Copy (_, len) -> a + len
+    (fun a -> function
+      | Duff.Copy (_, len) -> a + len
       | Duff.Insert (_, len) -> a + len)
     0 l
 
@@ -32,5 +33,5 @@ let () =
   apply ~len:length a b c rabin ;
 
   check_eq
-    ~pp:(Hxd_string.pp Hxd.O.default)
+    ~pp:(Hxd_string.pp Hxd.default)
     ~eq:String.equal (Bigstringaf.to_string b) (Bigstringaf.to_string c)

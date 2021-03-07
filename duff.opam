@@ -27,7 +27,7 @@ depends: [
   "stdlib-shims"
   "alcotest"    {with-test}
   "bigstringaf" {with-test}
-  "hxd"         {with-test}
+  "hxd"         {with-test & >= "0.3.1"}
   "crowbar"     {with-test}
 ]
 
