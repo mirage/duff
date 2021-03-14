@@ -30,7 +30,3 @@ depends: [
   "hxd"         {with-test & >= "0.3.1"}
   "crowbar"     {with-test}
 ]
-
-conflicts: [
-  "git" {<= "2.1.3"}
-]
