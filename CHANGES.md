@@ -1,3 +1,9 @@
+v0.4 2021-15-03 Paris (France)
+------------------------------------
+
+- Upgrade test to use `hxd.0.3.1`
+- Upgrade to `ocamlformat.0.16.0`
+
 v0.3 2020-06-02 Paris (France)
 ------------------------------------
 
