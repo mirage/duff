@@ -1,9 +1,7 @@
 external random_seed : unit -> int array = "caml_sys_random_seed"
 
 let seed = random_seed ()
-
 let () = Fmt.pr "seed: %a.\n%!" Fmt.(Dump.array int) seed
-
 let () = Random.full_init seed
 
 let random_string length =
@@ -24,7 +22,7 @@ let apply a b l r =
   Bytes.unsafe_to_string c
 
 let test length =
-  Alcotest.test_case (Fmt.strf "random:%d" length) `Quick @@ fun () ->
+  Alcotest.test_case (Fmt.str "random:%d" length) `Quick @@ fun () ->
   let a = random_string length in
   let b = random_string length in
   let source = Bigstringaf.of_string a ~off:0 ~len:(String.length a) in
