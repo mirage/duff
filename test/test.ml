@@ -24,7 +24,7 @@ let apply a b l r =
   Bytes.unsafe_to_string c
 
 let test length =
-  Alcotest.test_case (Fmt.strf "random:%d" length) `Quick @@ fun () ->
+  Alcotest.test_case (Fmt.str "random:%d" length) `Quick @@ fun () ->
   let a = random_string length in
   let b = random_string length in
   let source = Bigstringaf.of_string a ~off:0 ~len:(String.length a) in

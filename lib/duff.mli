@@ -32,8 +32,6 @@
     A {i diff} is a list of {!hunk}. [apply] is a simple function which needs
     the source [a] to reconstruct [b]. *)
 
-module Bigarray = Bigarray_compat
-
 type bigstring =
   (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 

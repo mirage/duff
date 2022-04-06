@@ -15,8 +15,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-module Bigarray = Bigarray_compat
-
 let _window = 16
 
 let _shift = 23
