@@ -16,9 +16,7 @@
  *)
 
 let _window = 16
-
 let _shift = 23
-
 let _limit = 64
 
 module Uint32 = struct
@@ -44,36 +42,23 @@ module Uint32 = struct
   (* @dbuenzli <3 *)
 
   let ( lsl ) = shift_left
-
   let ( lsr ) = shift_right
-
   let ( lor ) = logor
-
   let ( lxor ) = logxor
-
   let lnot = lognot
-
   let ( land ) = logand
-
   let ( - ) = sub
 end
 
 external ( < ) : 'a -> 'a -> bool = "%lessthan"
-
 external ( <= ) : 'a -> 'a -> bool = "%lessequal"
-
 external ( >= ) : 'a -> 'a -> bool = "%greaterequal"
-
 external ( > ) : 'a -> 'a -> bool = "%greaterthan"
 
 let ( > ) (x : int) y = x > y [@@inline]
-
 let ( < ) (x : int) y = x < y [@@inline]
-
 let ( <= ) (x : int) y = x <= y [@@inline]
-
 let ( >= ) (x : int) y = x >= y [@@inline]
-
 let min (a : int) b = if a <= b then a else b [@@inline]
 
 let t =
@@ -630,7 +615,6 @@ let derive v buf off =
   v
 
 type ptr = Entry of int | Null
-
 type unpacked_entry = { offset : int; hash : Uint32.t; next : ptr }
 
 let _pp_unpacked_entry ppf entry =
@@ -641,7 +625,6 @@ let _pp_unpacked_entry ppf entry =
     entry.hash pp_next entry.next
 
 let unsafe = function Entry idx -> idx | Null -> assert false [@@inline]
-
 let safe arr = function Entry idx -> arr.(idx).next | Null -> Null [@@inline]
 
 type entry = { offset : int; hash : Uint32.t }

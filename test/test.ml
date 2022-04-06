@@ -1,9 +1,7 @@
 external random_seed : unit -> int array = "caml_sys_random_seed"
 
 let seed = random_seed ()
-
 let () = Fmt.pr "seed: %a.\n%!" Fmt.(Dump.array int) seed
-
 let () = Random.full_init seed
 
 let random_string length =
