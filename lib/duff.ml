@@ -666,27 +666,27 @@ let unsafe_make source =
   let entries = ref max in
 
   while !idx >= 0 do
-    let hash = hash source (!idx + 1) (bigstring_length source) in
+    let hashv = hash source (!idx + 1) (bigstring_length source) in
 
-    if Uint32.compare hash !previous = 0
+    if Uint32.compare hashv !previous = 0
     then (
       unpacked.(!rev - 1) <-
         { (unpacked.(!rev - 1)) with offset = !idx + _window } ;
       decr entries (* keep the lowest consecutive indentical blocks *))
     else (
-      previous := hash ;
+      previous := hashv ;
 
       unpacked.(!rev) <-
         ({
            offset = !idx + _window;
-           hash;
-           next = htable.(Uint32.(to_int (hash land hmask)));
+           hash = hashv;
+           next = htable.(Uint32.(to_int (hashv land hmask)));
          }
           : unpacked_entry) ;
 
-      htable.(Uint32.(to_int (hash land hmask))) <- Entry !rev ;
-      hcount.(Uint32.(to_int (hash land hmask))) <-
-        hcount.(Uint32.(to_int (hash land hmask))) + 1 ;
+      htable.(Uint32.(to_int (hashv land hmask))) <- Entry !rev ;
+      hcount.(Uint32.(to_int (hashv land hmask))) <-
+        hcount.(Uint32.(to_int (hashv land hmask))) + 1 ;
       rev := !rev + 1) ;
 
     idx := !idx - _window
