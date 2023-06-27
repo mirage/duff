@@ -1,3 +1,9 @@
+v0.5 2023-06-23 Paris (France)
+------------------------------------
+
+- Require OCaml 4.07 and remove compatibility packages (@hannesm, #11)
+- Fix the compilation on OCaml 5.1 (@dinosaure, #12)
+
 v0.4 2021-15-03 Paris (France)
 ------------------------------------
 
