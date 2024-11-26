@@ -26,7 +26,9 @@ module type S = sig
 
   val zero : t
   val one : t
+  val max_int : t
   val to_int : t -> int
+  val to_unsigned_int32 : t -> int32
   val of_unsigned_int32 : int32 -> t
   val of_unsigned_int : int -> t
   val to_unsigned_int : t -> int
@@ -58,6 +60,7 @@ module Boxed = struct
   let without_bit_sign (x : int) = if x >= 0 then x else x land lnot 0x40000000
 
   external of_unsigned_int32 : int32 -> t = "%identity"
+  external to_unsigned_int32 : int32 -> t = "%identity"
 
   let of_unsigned_int x =
     if x < 0 then logor 0x40000000l (of_int (without_bit_sign x)) else of_int x
@@ -79,6 +82,7 @@ module Boxed = struct
   let ( land ) = logand
   let lnot = lognot
   let ( - ) = Int32.sub
+  let max_int = -1l
 end
 
 module Native = struct
@@ -88,6 +92,7 @@ module Native = struct
 
   let int32_sign_maskl = 0x80000000l
   let int32_sign_mask = 1 lsl 31
+  let uint32_max = (0xffff lsl 16) lor 0xffff
 
   let of_unsigned_int32 x =
     if x < 0l
@@ -96,12 +101,21 @@ module Native = struct
       Int32.to_int x lor int32_sign_mask
     else Int32.to_int x
 
+  let to_unsigned_int32 x =
+    let truncated = x land uint32_max in
+    if x <> truncated
+    then
+      Fmt.invalid_arg
+        "Native.to_unsigned_int32: %d can not fit into a 32 bits integer" x
+    else Int32.of_int truncated
+
   external of_unsigned_int : int -> t = "%identity"
   external to_int : t -> int = "%identity"
   external to_unsigned_int : t -> int = "%identity"
 
   let zero = 0
   let one = 1
+  let max_int = (1 lsl 32) - 1
 end
 
 module Immediate64 = struct
@@ -275,9 +289,10 @@ let hash buf off len =
   let v = ref Uint32.zero in
 
   while off + !i < len && !i < _window do
-    let m = Uint32.to_unsigned_int Uint32.(!v lsr _shift) land 0xff in
+    let m = Uint32.to_unsigned_int Uint32.(!v asr _shift) land 0xff in
     let c = bigstring_get_uint8 buf (off + !i) in
     (v := Uint32.((!v lsl 8) lor of_unsigned_int c lxor t.(m))) ;
+    (v := Uint32.(!v land max_int)) ;
     incr i
   done ;
 
@@ -290,7 +305,7 @@ let derive v buf off =
   let v =
     let open Uint32 in
     (v lsl 8) lor of_unsigned_int (bigstring_get_uint8 buf off) lxor t.(m) in
-  v
+  Uint32.(v land max_int)
 
 type ptr = Entry of int | Null
 type unpacked_entry = { offset : int; hash : Uint32.t; next : ptr }
@@ -497,7 +512,8 @@ let bigstring_foldi ?start f init c =
   !acc
 
 let same src ~src_off dst ~dst_off =
-  let len = min (bigstring_length src) (bigstring_length dst) in
+  let len =
+    min (bigstring_length src - src_off) (bigstring_length dst - dst_off) in
   let idx = ref 0 in
 
   while
@@ -511,7 +527,7 @@ let same src ~src_off dst ~dst_off =
   !idx
 
 let rev_same ~limit src ~src_off dst ~dst_off =
-  let bottom = max src_off dst_off in
+  let bottom = min src_off dst_off in
   let idx = ref 0 in
 
   while

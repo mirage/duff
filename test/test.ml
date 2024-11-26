@@ -1,6 +1,6 @@
 external random_seed : unit -> int array = "caml_sys_random_seed"
 
-let seed = random_seed ()
+let seed = [| 0; 1; 2; 3; 4 |]
 let () = Fmt.pr "seed: %a.\n%!" Fmt.(Dump.array int) seed
 let () = Random.full_init seed
 
@@ -29,6 +29,11 @@ let test length =
   let target = Bigstringaf.of_string b ~off:0 ~len:(String.length b) in
   let index = Duff.make source in
   let rabin = Duff.delta index ~source ~target in
+  let copies =
+    List.fold_left (fun a -> function Duff.Copy _ -> a + 1 | _ -> a) 0 rabin
+  in
+  Format.eprintf "%d copie(s)\n%!" copies ;
+  Format.eprintf "@[<hov>%a@]\n%!" Duff.pp_index index ;
   let length' =
     List.fold_left
       (fun a -> function
