@@ -11,10 +11,10 @@ let apply ~len:len' a b c l =
   List.fold_left
     (fun pos -> function
       | Duff.Copy (off, len) ->
-          Bigstringaf.blit a ~src_off:off c ~dst_off:pos ~len ;
+          Bigstringaf.blit a ~src_off:off c ~dst_off:pos ~len;
           pos + len
       | Duff.Insert (off, len) ->
-          Bigstringaf.blit b ~src_off:off c ~dst_off:pos ~len ;
+          Bigstringaf.blit b ~src_off:off c ~dst_off:pos ~len;
           pos + len)
     0 l
   |> fun len -> assert (len = len')
@@ -27,10 +27,10 @@ let () =
   let rabin = Duff.delta index ~source:a ~target:b in
   let length = length rabin in
 
-  if length <> Bigstringaf.length b then fail "Output length mismatch" ;
+  if length <> Bigstringaf.length b then fail "Output length mismatch";
 
   let c = Bigstringaf.create length in
-  apply ~len:length a b c rabin ;
+  apply ~len:length a b c rabin;
 
   check_eq
     ~pp:(Hxd_string.pp Hxd.default)

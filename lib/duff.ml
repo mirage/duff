@@ -142,12 +142,16 @@ module Immediate64 = struct
 end
 
 module Uint32 = struct
-  include Immediate64.Make (Native) (Boxed)
+  module Select = Immediate64.Make (Native) (Boxed)
+
+  module type S = S with type t := Select.t
 
   let impl : (module S) =
-    match repr with
+    match Select.repr with
     | Immediate -> (module Native : S)
     | Non_immediate -> (module Boxed : S)
+
+  type t = Select.t [@@immediate64]
 
   include (val impl : S)
 end
@@ -291,10 +295,12 @@ let hash buf off len =
   while off + !i < len && !i < _window do
     let m = Uint32.to_unsigned_int Uint32.(!v asr _shift) land 0xff in
     let c = bigstring_get_uint8 buf (off + !i) in
-    (v := Uint32.((!v lsl 8) lor of_unsigned_int c lxor t.(m))) ;
-    (v := Uint32.(!v land max_int)) ;
+    (v := Uint32.((!v lsl 8) lor of_unsigned_int c lxor t.(m)));
+    (* NOTE(dinosaure): on 32 bits, we don't really care but on 64 bits, we must
+       mask [v] with [0xffffffff]. Otherwise, the hash is wrong. *)
+    (v := Uint32.(!v land max_int));
     incr i
-  done ;
+  done;
 
   !v
 
@@ -304,23 +310,25 @@ let derive v buf off =
   let m = Uint32.to_unsigned_int Uint32.(v lsr _shift) land 0xff in
   let v =
     let open Uint32 in
-    (v lsl 8) lor of_unsigned_int (bigstring_get_uint8 buf off) lxor t.(m) in
+    (v lsl 8) lor of_unsigned_int (bigstring_get_uint8 buf off) lxor t.(m)
+  in
+  (* NOTE(dinosaure): see the comment above about 32-bits and 64-bits. *)
   Uint32.(v land max_int)
 
 type ptr = Entry of int | Null
-type unpacked_entry = { offset : int; hash : Uint32.t; next : ptr }
+type unpacked_entry = { offset: int; hash: Uint32.t; next: ptr }
 
 let unsafe = function Entry idx -> idx | Null -> assert false [@@inline]
 let safe arr = function Entry idx -> arr.(idx).next | Null -> Null [@@inline]
 
-type entry = { offset : int; hash : Uint32.t }
+type entry = { offset: int; hash: Uint32.t }
 
 let pp_entry : entry Fmt.t =
  fun ppf entry ->
   Fmt.pf ppf "{ @[<hov>offset = %d;@ hash = %xu;@] }" entry.offset
     (Uint32.to_unsigned_int entry.hash)
 
-type index = { hash : entry list array; mask : Uint32.t }
+type index = { hash: entry list array; mask: Uint32.t }
 
 let pp_index : index Fmt.t =
  fun ppf index ->
@@ -333,21 +341,22 @@ let unsafe_make source =
   let len =
     if Sys.word_size == 64
     then min (bigstring_length source) (int_of_string "0xFFFFFFFE")
-    else min (bigstring_length source) max_int in
+    else min (bigstring_length source) max_int
+  in
   (* XXX(dinosaure): in git, we can't encode on offset upper than
        [0xFFFFFFFE]. So we limit the index to this area. *)
   let max = (len - 1) / _window in
   let idx = ref ((max * _window) - _window) in
   let rev = ref 0 in
-  let unpacked =
-    Array.make max { offset = 0; hash = Uint32.zero; next = Null } in
+  let unpacked = Array.make max { offset= 0; hash= Uint32.zero; next= Null } in
 
   let hsize, hmask =
     let res = ref 4 in
     while 1 lsl !res < max / 4 do
       incr res
-    done ;
-    (1 lsl !res, Uint32.((one lsl !res) - one)) in
+    done;
+    (1 lsl !res, Uint32.((one lsl !res) - one))
+  in
   let htable = Array.make hsize Null in
   let hcount = Array.make hsize 0 in
 
@@ -360,26 +369,27 @@ let unsafe_make source =
     if Uint32.compare hashv !previous == 0
     then (
       unpacked.(!rev - 1) <-
-        { (unpacked.(!rev - 1)) with offset = !idx + _window } ;
+        { (unpacked.(!rev - 1)) with offset= !idx + _window };
       decr entries (* keep the lowest consecutive indentical blocks *))
     else (
-      previous := hashv ;
+      previous := hashv;
+      let unpacked_entry =
+        {
+          offset= !idx + _window;
+          hash= hashv;
+          next= htable.(Uint32.(to_unsigned_int (hashv land hmask)));
+        }
+      in
 
-      unpacked.(!rev) <-
-        ({
-           offset = !idx + _window;
-           hash = hashv;
-           next = htable.(Uint32.(to_unsigned_int (hashv land hmask)));
-         }
-          : unpacked_entry) ;
+      unpacked.(!rev) <- unpacked_entry;
 
-      htable.(Uint32.(to_unsigned_int (hashv land hmask))) <- Entry !rev ;
+      htable.(Uint32.(to_unsigned_int (hashv land hmask))) <- Entry !rev;
       hcount.(Uint32.(to_unsigned_int (hashv land hmask))) <-
-        hcount.(Uint32.(to_unsigned_int (hashv land hmask))) + 1 ;
-      rev := !rev + 1) ;
+        hcount.(Uint32.(to_unsigned_int (hashv land hmask))) + 1;
+      rev := !rev + 1);
 
     idx := !idx - _window
-  done ;
+  done;
 
   (* Determine a limit on the number of entries in the same hash bucket. This
      guards us against pathological data sets causing really bad hash
@@ -414,57 +424,57 @@ let unsafe_make source =
     match htable.(i) with
     | Entry idx when hcount.(i) > _limit ->
         (* XXX(dinosaure): htable.(i) = `Null and hcount.(i) > 0 can't appear. *)
-        entries := !entries - (hcount.(i) - _limit) ;
+        entries := !entries - (hcount.(i) - _limit);
 
         (* we leave exactly HASH_LIMIT entries in the bucket *)
         let acc = ref (hcount.(i) - (2 * _limit)) in
         let entry = ref (Entry idx) in
         let keep = Entry idx in
 
-        entry := safe unpacked !entry ;
+        entry := safe unpacked !entry;
 
         while !acc > 0 do
-          entry := safe unpacked !entry ;
+          entry := safe unpacked !entry;
           (* XXX(dinosaure): safe get the [next] field at [!entry] in [res] or
                             keep [`Null] if [!entry = `Null]. *)
           acc := !acc - _limit
-        done ;
+        done;
 
         unpacked.(unsafe keep) <-
-          { (unpacked.(unsafe keep)) with next = safe unpacked !entry } ;
+          { (unpacked.(unsafe keep)) with next= safe unpacked !entry };
 
-        entry := safe unpacked !entry ;
+        entry := safe unpacked !entry;
 
         while !entry <> Null do
-          acc := !acc + (hcount.(i) - _limit) ;
+          acc := !acc + (hcount.(i) - _limit);
 
           if !acc > 0
           then (
             let keep = !entry in
 
-            entry := safe unpacked !entry ;
-            acc := !acc - _limit ;
+            entry := safe unpacked !entry;
+            acc := !acc - _limit;
 
             while !acc > 0 do
-              entry := safe unpacked !entry ;
+              entry := safe unpacked !entry;
               acc := !acc - _limit
-            done ;
+            done;
 
             unpacked.(unsafe keep) <-
-              { (unpacked.(unsafe keep)) with next = safe unpacked !entry }
+              { (unpacked.(unsafe keep)) with next= safe unpacked !entry }
             (* XXX(dinosaure): we can use [unsafe] because when [keep = !entry],
-                            we check that [!entry <> `Null]. *)) ;
+                            we check that [!entry <> `Null]. *));
 
           entry := safe unpacked !entry
         done
     | Entry _ | Null -> ()
-  done ;
+  done;
 
   (* let unpacked = Array.sub unpacked 0 !entries in
 
      XXX(dinosaure): can't sub the result because some references [`Entry idx]
      follow some upper entries than [!entries]. We need to introspect what is
-     the problem. *)
+     the problem. TODO! *)
   let packed = Array.make hsize [] in
 
   for i = 0 to hsize - 1 do
@@ -474,30 +484,27 @@ let unsafe_make source =
       | Null -> List.rev acc
       | Entry idx ->
           let { offset; hash; next } = unpacked.(idx) in
-          aux ({ offset; hash } :: acc) next in
+          aux ({ offset; hash } :: acc) next
+    in
 
     packed.(i) <- aux [] htable.(i)
-  done ;
+  done;
 
-  { hash = packed; mask = hmask }
+  { hash= packed; mask= hmask }
 
 let make source = unsafe_make source
-
-type action = Cont | Move of int
 
 let bigstring_iteri ?(start = 0) f c =
   let len = bigstring_length c in
 
-  if start < 0 || start > len then invalid_arg "iter" ;
+  if start < 0 || start > len then invalid_arg "iter";
 
   let idx = ref start in
 
   while !idx < len do
-    match f !idx (bigstring_get_uint8 c !idx) with
-    | Cont -> incr idx
-    | Move add ->
-        let max = len - !idx in
-        idx := !idx + min max add
+    let shft = f !idx (bigstring_get_uint8 c !idx) in
+    let shft = min (len - !idx) shft in
+    idx := !idx + shft
   done
 
 let bigstring_foldi ?start f init c =
@@ -506,14 +513,15 @@ let bigstring_foldi ?start f init c =
   bigstring_iteri ?start
     (fun i x ->
       let action, a = f !acc i x in
-      acc := a ;
+      acc := a;
       action)
-    c ;
+    c;
   !acc
 
 let same src ~src_off dst ~dst_off =
   let len =
-    min (bigstring_length src - src_off) (bigstring_length dst - dst_off) in
+    min (bigstring_length src - src_off) (bigstring_length dst - dst_off)
+  in
   let idx = ref 0 in
 
   while
@@ -522,7 +530,7 @@ let same src ~src_off dst ~dst_off =
        == bigstring_get_uint8 dst (dst_off + !idx)
   do
     incr idx
-  done ;
+  done;
 
   !idx
 
@@ -537,7 +545,7 @@ let rev_same ~limit src ~src_off dst ~dst_off =
        == bigstring_get_uint8 dst (dst_off - !idx)
   do
     incr idx
-  done ;
+  done;
 
   !idx
 
@@ -560,21 +568,26 @@ let delta index ~source ~target =
         let entries =
           List.filter
             (fun (entry : entry) -> Uint32.compare entry.hash current_hash == 0)
-            entries in
+            entries
+        in
         let copy_off, copy_len =
           let fn (copy_off, copy_len) entry =
             let same =
-              same source ~src_off:entry.offset target ~dst_off:offset in
+              same source ~src_off:entry.offset target ~dst_off:offset
+            in
             (* XXX(dinosaure): git shortcut this compute when [copy_len >=
                4096]. In imperative way, it's good but, guy, it's OCaml. We
                can use an exception and raise it in this situation but I
                don't think it's *very* relevant. *)
             if same > copy_len
             then (entry.offset, same) (* this is our best match so far *)
-            else (copy_off, copy_len) in
-          List.fold_left fn (copy_off, copy_len) entries in
+            else (copy_off, copy_len)
+          in
+          List.fold_left fn (copy_off, copy_len) entries
+        in
         ((copy_off, copy_len), current_hash)
-      else ((copy_off, copy_len), current_hash) in
+      else ((copy_off, copy_len), current_hash)
+    in
 
     if copy_len < 4
     then
@@ -582,19 +595,19 @@ let delta index ~source ~target =
       | Insert (off, len) :: r ->
           if len = 0x7F
           then
-            let action = Cont
+            let action = 1
             and hunks = Insert (offset, 1) :: Insert (off, len) :: r
             and copy = (offset, 0)
             and hash = current_hash in
             (action, (hunks, copy, hash))
           else
-            let action = Cont
+            let action = 1
             and hunks = Insert (off, len + 1) :: r
             and copy = (offset, 0)
             and hash = current_hash in
             (action, (hunks, copy, hash))
       | (Copy (_, _) :: _ | []) as acc ->
-          let action = Cont
+          let action = 1
           and hunks = Insert (offset, 1) :: acc
           and copy = (offset, 0)
           and hash = current_hash in
@@ -607,7 +620,8 @@ let delta index ~source ~target =
               target ~dst_off:(offset - 1)
         | Copy _ :: _ | [] -> 0
         (* XXX(dinosaure): this case concerns an empty list and a list started
-           with a [C]. in any case, we can't move back. *) in
+           with a [C]. in any case, we can't move back. *)
+      in
 
       let acc =
         match acc with
@@ -617,25 +631,27 @@ let delta index ~source ~target =
             else if rev_same > 0
             then Insert (poff, plen - rev_same) :: r
             else Insert (poff, plen) :: r
-        | (Copy _ :: _ | []) as lst -> lst in
+        | (Copy _ :: _ | []) as lst -> lst
+      in
 
       (* XXX(dinosaure): in git, the length of a pattern can't be upper than
          0x10000. *)
       if copy_len + rev_same > 0x10000
       then
-        let action = Move (0x10000 - rev_same)
+        let action = 0x10000 - rev_same
         and hunks = Copy (copy_off - rev_same, 0x10000) :: acc
         and copy = (copy_off - rev_same + 0x10000, copy_len + rev_same - 0x10000)
         and hash = current_hash in
         (action, (hunks, copy, hash))
       else
-        let action = Move copy_len
+        let action = copy_len
         and hunks = Copy (copy_off - rev_same, copy_len + rev_same) :: acc
         and copy = (copy_off + copy_len + rev_same, 0)
         and hash =
           hash target (offset + copy_len - _window) (bigstring_length target)
         in
-        (action, (hunks, copy, hash)) in
+        (action, (hunks, copy, hash))
+  in
 
   let hash = hash target 0 (bigstring_length target) in
   let consumed = min _window (bigstring_length target) in
@@ -643,5 +659,6 @@ let delta index ~source ~target =
   let res, _, _ =
     bigstring_foldi ~start:consumed make
       ([ Insert (0, consumed) ], (0, 0), hash)
-      target in
+      target
+  in
   List.rev res
