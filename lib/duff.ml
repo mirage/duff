@@ -325,17 +325,17 @@ type entry = { offset: int; hash: Uint32.t }
 
 let pp_entry : entry Fmt.t =
  fun ppf entry ->
-  Fmt.pf ppf "{ @[<hov>offset = %d;@ hash = %xu;@] }" entry.offset
-    (Uint32.to_unsigned_int entry.hash)
+  Fmt.pf ppf "{ @[<hov>offset = %d;@ hash = %lxu;@] }" entry.offset
+    (Uint32.to_unsigned_int32 entry.hash)
 
 type index = { hash: entry list array; mask: Uint32.t }
 
 let pp_index : index Fmt.t =
  fun ppf index ->
-  Fmt.pf ppf "{ @[<hov>hash = [ %a ];@ mask = %xu;@] }"
+  Fmt.pf ppf "{ @[<hov>hash = [ %a ];@ mask = %lxu;@] }"
     (Fmt.hvbox (Fmt.array (Fmt.list pp_entry)))
     index.hash
-    (Uint32.to_unsigned_int index.mask)
+    (Uint32.to_unsigned_int32 index.mask)
 
 let unsafe_make source =
   let len =
