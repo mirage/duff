@@ -1,4 +1,3 @@
 (library
  (name duff)
- (public_name duff)
- (libraries fmt))
+ (public_name duff))

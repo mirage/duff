@@ -18,6 +18,7 @@
 let _window = 16
 let _shift = 23
 let _limit = 64
+let invalid_argf fmt = Format.kasprintf invalid_arg fmt
 
 [@@@warning "-32"]
 
@@ -54,8 +55,7 @@ module Boxed = struct
     then
       let x = Int32.logand x 0x7fffffffl in
       to_int x
-    else
-      Fmt.invalid_arg "Boxed.to_int: %lx can not fix into a 31 bits integer" x
+    else invalid_argf "Boxed.to_int: %lx can not fit into a 31 bits integer" x
 
   let without_bit_sign (x : int) = if x >= 0 then x else x land lnot 0x40000000
 
@@ -70,8 +70,8 @@ module Boxed = struct
     if compare zero x <= 0 && compare x max_int <= 0
     then to_int x
     else
-      Fmt.invalid_arg
-        "Boxed.to_unsigned_int: %lx can not fix into a 32 bits unsigned integer"
+      invalid_argf
+        "Boxed.to_unsigned_int: %lx can not fit into a 32 bits unsigned integer"
         x
 
   let ( lsr ) = shift_right_logical
@@ -105,7 +105,7 @@ module Native = struct
     let truncated = x land uint32_max in
     if x <> truncated
     then
-      Fmt.invalid_arg
+      invalid_argf
         "Native.to_unsigned_int32: %d can not fit into a 32 bits integer" x
     else Int32.of_int truncated
 
@@ -293,7 +293,7 @@ let hash buf off len =
   let v = ref Uint32.zero in
 
   while off + !i < len && !i < _window do
-    let m = Uint32.to_unsigned_int Uint32.(!v asr _shift) land 0xff in
+    let m = Uint32.to_unsigned_int Uint32.(!v lsr _shift) land 0xff in
     let c = bigstring_get_uint8 buf (off + !i) in
     (v := Uint32.((!v lsl 8) lor of_unsigned_int c lxor t.(m)));
     (* NOTE(dinosaure): on 32 bits, we don't really care but on 64 bits, we must
@@ -323,17 +323,36 @@ let safe arr = function Entry idx -> arr.(idx).next | Null -> Null [@@inline]
 
 type entry = { offset: int; hash: Uint32.t }
 
-let pp_entry : entry Fmt.t =
+let pp_entry : Format.formatter -> entry -> unit =
  fun ppf entry ->
-  Fmt.pf ppf "{ @[<hov>offset = %d;@ hash = %lxu;@] }" entry.offset
+  Format.fprintf ppf "{ @[<hov>offset = %d;@ hash = %lxu;@] }" entry.offset
     (Uint32.to_unsigned_int32 entry.hash)
 
 type index = { hash: entry list array; mask: Uint32.t }
 
-let pp_index : index Fmt.t =
+let fmt_array pp_elt ppf arr =
+  Format.fprintf ppf "@[<2>[|";
+  let is_first = ref true in
+  for i = 0 to Array.length arr - 1 do
+    if !is_first then is_first := false else Format.fprintf ppf ";@ ";
+    Format.fprintf ppf "@[%a@]" pp_elt arr.(i)
+  done;
+  Format.fprintf ppf "|]@]"
+
+let fmt_list pp_elt ppf lst =
+  Format.fprintf ppf "@[<1>[";
+  let is_first = ref true in
+  let fn elt =
+    if !is_first then is_first := false else Format.fprintf ppf ";@ ";
+    Format.fprintf ppf "@[%a@]" pp_elt elt
+  in
+  List.iter fn lst;
+  Format.fprintf ppf "]@]"
+
+let pp_index : Format.formatter -> index -> unit =
  fun ppf index ->
-  Fmt.pf ppf "{ @[<hov>hash = [ %a ];@ mask = %lxu;@] }"
-    (Fmt.hvbox (Fmt.array (Fmt.list pp_entry)))
+  Format.fprintf ppf "{ @[<hov>hash = @[<hov>%a@];@ mask = %lxu;@] }"
+    (fmt_array (fmt_list pp_entry))
     index.hash
     (Uint32.to_unsigned_int32 index.mask)
 
@@ -553,8 +572,8 @@ let rev_same ~limit src ~src_off dst ~dst_off =
 type hunk = Copy of (int * int) | Insert of (int * int)
 
 let pp_hunk ppf = function
-  | Copy (off, len) -> Fmt.pf ppf "(Copy (%d, %d))" off len
-  | Insert (off, len) -> Fmt.pf ppf "(Insert (%d, %d))" off len
+  | Copy (off, len) -> Format.fprintf ppf "(Copy (%d, %d))" off len
+  | Insert (off, len) -> Format.fprintf ppf "(Insert (%d, %d))" off len
 
 let delta index ~source ~target =
   let make (acc, (copy_off, copy_len), current_hash) offset _ =

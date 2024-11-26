@@ -38,7 +38,7 @@ type bigstring =
 type index
 (** The type of the index. *)
 
-val pp_index : index Fmt.t
+val pp_index : Format.formatter -> index -> unit
 (** Pretty-printer of {!index}. *)
 
 val make : bigstring -> index
@@ -53,7 +53,7 @@ type hunk =
       (** It's the insert ([off, len]) {i opcode} to keep a specific byte range
           of {i len} bytes of the target at {i off}. *)
 
-val pp_hunk : hunk Fmt.t
+val pp_hunk : Format.formatter -> hunk -> unit
 (** Pretty-printer of {!hunk}. *)
 
 val delta : index -> source:bigstring -> target:bigstring -> hunk list
